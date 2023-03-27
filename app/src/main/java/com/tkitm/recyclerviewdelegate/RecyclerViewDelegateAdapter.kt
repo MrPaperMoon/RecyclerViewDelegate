@@ -1,24 +1,22 @@
 package com.tkitm.recyclerviewdelegate
 
 import android.content.Context
-import android.view.LayoutInflater
-import android.view.View
-import android.view.ViewGroup
-import androidx.recyclerview.widget.DiffUtil
-import androidx.recyclerview.widget.RecyclerView
+import android.view.*
+import androidx.recyclerview.widget.*
 
 abstract class RecyclerViewDelegate {
 
     abstract val layoutId: Int
     open val itemId: Long? = null
 
-    protected lateinit var actionListener: ActionListener
+    protected var actionListener: ActionListener? = null
+        private set
 
     open fun ViewHolder.onBindViewHolder(
-        context: Context,
-        adapterPosition: Int,
-        payloads: List<Any>,
-    ) {
+            context: Context,
+            adapterPosition: Int,
+            payloads: List<Any>,
+                                        ) {
         onBindViewHolder(context, adapterPosition)
     }
 
@@ -39,7 +37,7 @@ abstract class RecyclerViewDelegate {
     }
 
     open fun areContentsTheSame(other: RecyclerViewDelegate): Boolean {
-        return this === other
+        return this == other
     }
 
     open fun getChangePayload(other: RecyclerViewDelegate): Any? {
@@ -47,10 +45,10 @@ abstract class RecyclerViewDelegate {
     }
 
     private fun onBindViewHolder(
-        viewHolder: ViewHolder,
-        adapterPosition: Int,
-        payloads: List<Any>
-    ) {
+            viewHolder: ViewHolder,
+            adapterPosition: Int,
+            payloads: List<Any>
+                                ) {
         val context = viewHolder.itemView.context
         viewHolder.onBindViewHolder(context, adapterPosition, payloads)
     }
@@ -71,7 +69,7 @@ abstract class RecyclerViewDelegate {
     }
 
     open class Adapter(private val actionListener: ActionListener) :
-        RecyclerView.Adapter<ViewHolder>() {
+            RecyclerView.Adapter<ViewHolder>() {
 
         protected val itemList: List<RecyclerViewDelegate>
             get() = internalItemList
@@ -89,10 +87,6 @@ abstract class RecyclerViewDelegate {
             val diffResult = DiffUtil.calculateDiff(diffUtilCallback)
             val resultList = diffUtilCallback.getResultList()
 
-            resultList.forEach {
-                it.actionListener = actionListener
-            }
-
             internalItemList.clear()
             internalItemList.addAll(resultList)
             diffResult.dispatchUpdatesTo(this)
@@ -107,18 +101,21 @@ abstract class RecyclerViewDelegate {
         }
 
         override fun onBindViewHolder(
-            holder: ViewHolder,
-            position: Int,
-            payloads: List<Any>
-        ) {
+                holder: ViewHolder,
+                position: Int,
+                payloads: List<Any>
+                                     ) {
             val recyclerViewDelegate = itemList[position]
+            recyclerViewDelegate.actionListener = actionListener
             holder.onBind(recyclerViewDelegate)
             recyclerViewDelegate.onBindViewHolder(holder, position, payloads)
         }
 
         override fun onViewRecycled(holder: ViewHolder) {
-            holder.delegate?.onUnbindViewHolder(holder)
+            val recyclerViewDelegate = holder.delegate
+            recyclerViewDelegate?.onUnbindViewHolder(holder)
             holder.onViewRecycled()
+            recyclerViewDelegate?.actionListener = null
         }
 
         override fun onViewAttachedToWindow(holder: ViewHolder) {
@@ -139,6 +136,7 @@ abstract class RecyclerViewDelegate {
     }
 
     class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+
         var delegate: RecyclerViewDelegate? = null
 
         fun onBind(recyclerViewDelegate: RecyclerViewDelegate) {
@@ -153,14 +151,15 @@ abstract class RecyclerViewDelegate {
     interface Action
 
     fun interface ActionListener {
-        fun onAction()
+
+        fun onAction(action: Action)
     }
 }
 
 private class DiffUtilCallback(
-    private val oldList: List<RecyclerViewDelegate>,
-    private val newList: List<RecyclerViewDelegate>,
-) : DiffUtil.Callback() {
+        private val oldList: List<RecyclerViewDelegate>,
+        private val newList: List<RecyclerViewDelegate>,
+                              ) : DiffUtil.Callback() {
 
     private val resultList = ArrayList<RecyclerViewDelegate>(newList)
 
